@@ -1,3 +1,6 @@
+This repository is a fork of @ahmad-hl's work on updating @hongzimao's Pensieve Model to a more recent Python and TensorFlow version.
+It contains some changes and extra comments.
+
 # Pensieve
 Pensieve is a system that generates adaptive bitrate algorithms using reinforcement learning.
 http://web.mit.edu/pensieve/
