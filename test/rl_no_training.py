@@ -2,6 +2,7 @@ import os
 os.environ['CUDA_VISIBLE_DEVICES']=''
 import numpy as np
 import tensorflow as tf
+#import tensorflow.compat.v1 as tf
 import fixed_env as env
 import a3c
 import load_trace
@@ -25,7 +26,31 @@ SUMMARY_DIR = './results'
 LOG_FILE = './results/log_sim_rl'
 # log in format of time_stamp bit_rate buffer_size rebuffer_time chunk_size download_time reward
 NN_MODEL = './models/pretrain_linear_reward.ckpt'
+#NN_MODEL = './models/nn_model_ep_83800.ckpt'
 
+# br - bitrate utility, rp - rebuffering penalty, sp - smoothness penalty
+def qoe_calc_lin(R_n, T_n):
+    br = sum(R_n)
+    rp = 4.3 * sum(T_n)
+    sp = sum([abs(R_n[i+1] - R_n[i]) for i in range(len(R_n)-1)])
+    qoe_res =  br - rp - sp
+    return qoe_res/len(R_n), br, rp, sp
+
+def qoe_calc_log(R_n, T_n):
+    R_n = np.array(R_n)
+    br = sum(np.log(R_n/np.amin(R_n)))
+    rp = 2.66 * sum(T_n)
+    sp = sum([abs(np.log(R_n[i+1]/np.amin(R_n)) - np.log(R_n[i]/np.amin(R_n))) for i in range(len(R_n)-1)])
+    qoe_res =  br - rp - sp
+    return qoe_res/len(R_n), br, rp, sp
+
+def qoe_calc_hd(R_n, T_n):
+    qR = {0.3 : 1, 0.75 : 2, 1.2 : 3, 1.85 : 12, 2.85 : 15, 4.3 : 20}
+    br = sum([qR[R_n[i]] for i in range(len(R_n))])
+    rp = 8 * sum(T_n)
+    sp = sum([abs(qR[R_n[i+1]] - qR[R_n[i]]) for i in range(len(R_n)-1)])
+    qoe_res =  br - rp - sp
+    return qoe_res/len(R_n), br, rp, sp
 
 def main():
 
@@ -43,6 +68,9 @@ def main():
 
     log_path = LOG_FILE + '_' + all_file_names[net_env.trace_idx]
     log_file = open(log_path, 'wb')
+
+    br = []
+    rp = []
 
     with tf.compat.v1.Session() as sess:
 
@@ -78,6 +106,8 @@ def main():
 
         video_count = 0
 
+
+
         while True:  # serve video forever
             # the action is from the last decision
             # this is to make the framework similar to the real
@@ -94,19 +124,22 @@ def main():
                      - REBUF_PENALTY * rebuf \
                      - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
                                                VIDEO_BIT_RATE[last_bit_rate]) / M_IN_K
+            
+            br.append(VIDEO_BIT_RATE[bit_rate] / M_IN_K)
+            rp.append(rebuf)
 
             r_batch.append(reward)
 
             last_bit_rate = bit_rate
 
             # log time_stamp, bit_rate, buffer_size, reward
-            log_file.write(str(time_stamp / M_IN_K) + '\t' +
+            log_file.write(bytes(str(time_stamp / M_IN_K) + '\t' +
                            str(VIDEO_BIT_RATE[bit_rate]) + '\t' +
                            str(buffer_size) + '\t' +
                            str(rebuf) + '\t' +
                            str(video_chunk_size) + '\t' +
                            str(delay) + '\t' +
-                           str(reward) + '\n')
+                           str(reward) + '\n', 'utf-8'))
             log_file.flush()
 
             # retrieve previous state
@@ -137,7 +170,18 @@ def main():
             entropy_record.append(a3c.compute_entropy(action_prob[0]))
 
             if end_of_video:
-                log_file.write('\n')
+                """
+                qoe_lin, brlin, rplin, splin = qoe_calc_lin(br, rp)
+                qoe_log, brlog, rplog, splog = qoe_calc_log(br, rp)
+                qoe_hd, brhd, rphd, sphd = qoe_calc_hd(br, rp)
+                print(qoe_lin, qoe_log, qoe_hd)
+
+                log_file.write(bytes(str(qoe_lin) + '\t' + str(brlin) + '\t' + str(rplin) + '\t' + str(splin) + '\t' + str(len(br)) + '\n' +
+                                     str(qoe_log) + '\t' + str(brlog) + '\t' + str(rplog) + '\t' + str(splog) + '\n' +
+                                     str(qoe_hd) + '\t' + str(brhd) + '\t' + str(rphd) + '\t' + str(sphd) + '\n', 'utf-8'))
+                log_file.flush()
+                """
+                log_file.write(b'\n')
                 log_file.close()
 
                 last_bit_rate = DEFAULT_QUALITY
@@ -161,7 +205,7 @@ def main():
                     break
 
                 log_path = LOG_FILE + '_' + all_file_names[net_env.trace_idx]
-                log_file = open(log_path, 'w')
+                log_file = open(log_path, 'wb')
 
 
 if __name__ == '__main__':

@@ -47,6 +47,29 @@ def get_chunk_size(quality, index):
     sizes = {5: size_video1[index], 4: size_video2[index], 3: size_video3[index], 2: size_video4[index], 1: size_video5[index], 0:size_video6[index]}
     return sizes[quality]
 
+# br - bitrate utility, rp - rebuffering penalty, sp - smoothness penalty
+def qoe_calc_lin(R_n, T_n):
+    br = sum(R_n)
+    rp = 4.3 * sum(T_n)
+    sp = sum([abs(R_n[i+1] - R_n[i]) for i in range(len(R_n)-1)])
+    qoe_res =  br - rp - sp
+    return qoe_res/len(R_n), br, rp, sp
+
+def qoe_calc_log(R_n, T_n):
+    R_n = np.array(R_n)
+    br = sum(np.log(R_n/np.amin(R_n)))
+    rp = 2.66 * sum(T_n)
+    sp = sum([abs(np.log(R_n[i+1]/np.amin(R_n)) - np.log(R_n[i]/np.amin(R_n))) for i in range(len(R_n)-1)])
+    qoe_res =  br - rp - sp
+    return qoe_res/len(R_n), br, rp, sp
+
+def qoe_calc_hd(R_n, T_n):
+    qR = {0.3 : 1, 0.75 : 2, 1.2 : 3, 1.85 : 12, 2.85 : 15, 4.3 : 20}
+    br = sum([qR[R_n[i]] for i in range(len(R_n))])
+    rp = 8 * sum(T_n)
+    sp = sum([abs(qR[R_n[i+1]] - qR[R_n[i]]) for i in range(len(R_n)-1)])
+    qoe_res =  br - rp - sp
+    return qoe_res/len(R_n), br, rp, sp
 
 def main():
 
@@ -81,11 +104,14 @@ def main():
     for combo in itertools.product([0,1,2,3,4,5], repeat=5):
         CHUNK_COMBO_OPTIONS.append(combo)
 
+    br = []
+    rp = []
+
     while True:  # serve video forever
         # the action is from the last decision
         # this is to make the framework similar to the real
         delay, sleep_time, buffer_size, rebuf, \
-        video_chunk_size, \
+        video_chunk_size, next_video_chunk_sizes, \
         end_of_video, video_chunk_remain = \
             net_env.get_video_chunk(bit_rate)
 
@@ -97,6 +123,9 @@ def main():
                  - REBUF_PENALTY * rebuf \
                  - SMOOTH_PENALTY * np.abs(VIDEO_BIT_RATE[bit_rate] -
                                            VIDEO_BIT_RATE[last_bit_rate]) / M_IN_K
+
+        br.append(VIDEO_BIT_RATE[bit_rate] / M_IN_K)
+        rp.append(rebuf)
 
         # log scale reward
         # log_bit_rate = np.log(VIDEO_BIT_RATE[bit_rate] / float(VIDEO_BIT_RATE[0]))
@@ -239,6 +268,17 @@ def main():
         s_batch.append(state)
 
         if end_of_video:
+            """
+            qoe_lin, brlin, rplin, splin = qoe_calc_lin(br, rp)
+            qoe_log, brlog, rplog, splog = qoe_calc_log(br, rp)
+            qoe_hd, brhd, rphd, sphd = qoe_calc_hd(br, rp)
+            print(qoe_lin, qoe_log, qoe_hd)
+
+            log_file.write(str(qoe_lin) + '\t' + str(brlin) + '\t' + str(rplin) + '\t' + str(splin) + '\n' +
+                           str(qoe_log) + '\t' + str(brlog) + '\t' + str(rplog) + '\t' + str(splog) + '\n' +
+                           str(qoe_hd) + '\t' + str(brhd) + '\t' + str(rphd) + '\t' + str(sphd) + '\n')
+            log_file.flush()
+            """
             log_file.write('\n')
             log_file.close()
 
