@@ -1,3 +1,10 @@
+# Note:
+Any test done in this section will be the result of the model configured with Linear QoE. To reproduce the figures (7, 8, 9, 10) from the paper, be sure to also train the model for Logarithmic QoE and HD QoE. Changes were made as the original `plot_results.py` code file didn't produce the mentioned figures from the paper.
+
+*_Each simulation should be configured for each QoE metric!_*
+
+# Readme
+
 Make sure actual video files are stored in `video_server/video[1-6]`, then run
 ```
 python get_video_sizes
@@ -14,7 +21,7 @@ python rl_no_training.py
 
 Results will be saved in `test/results/`. Similarly, one can also run `bb.py` for buffer-based simulation, `mpc.py` for robustMPC simulation, and `dp.cc` for offline optimal simulation.
 
-To view the results, modify `SCHEMES` in `plot_results.py` (it checks the file name of the log and matches to the corresponding ABR algorithm), then run 
+To view the results, modify `SCHEMES` in `plot_graphs.py` (it checks the file name of the log and matches to the corresponding ABR algorithm), then run 
 ```
-python plot_results.py
+python plot_graphs.py
 ```
