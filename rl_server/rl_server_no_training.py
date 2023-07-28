@@ -37,6 +37,8 @@ SUMMARY_DIR = './results'
 LOG_FILE = './results/log'
 # in format of time_stamp bit_rate buffer_size rebuffer_time video_chunk_size download_time reward
 # NN_MODEL = None
+
+#NN_MODEL = '../rl_server/results/nn_model_ep_83800.ckpt'
 NN_MODEL = '../rl_server/results/pretrain_linear_reward.ckpt'
 
 # video chunk sizes

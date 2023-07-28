@@ -16,7 +16,7 @@ def main():
 	process_id = sys.argv[3]
 	ip = sys.argv[4]
 
-	sleep_vec = range(1, 10)  # random sleep second
+	sleep_vec = list(range(1, 10))  # random sleep second
 
 	files = os.listdir(trace_path)
 	for f in files:
@@ -38,9 +38,9 @@ def main():
 			if out == 'done\n':
 				break
 			else:
-				with open('./chrome_retry_log', 'ab') as log:
+				with open('./chrome_retry_log', 'a+') as log:
 					log.write(abr_algo + '_' + f + '\n')
-					log.write(out + '\n')
+					log.write(out.decode('utf-8') + '\n')
 					log.flush()
 
 
